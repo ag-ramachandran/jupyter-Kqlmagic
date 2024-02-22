@@ -10,7 +10,7 @@ import uuid
 # import webbrowser
 import urllib.parse
 import urllib.request
-
+from .log import logger
 
 from ._debug_utils import debug_print
 from .ipython_api import display, HTML
@@ -442,10 +442,7 @@ class Display(object):
                 with urllib.request.urlopen(file_path_or_data) as bytes_reader:
                     file_path_or_data = bytes_reader.read().decode('utf-8')
             else:
-                full_file_name = adjust_path(f"{Display.showfiles_file_base_path}/{file_path_or_data}")
-                with open(full_file_name, 'r') as str_reader:
-                    # Read the entire file
-                    file_path_or_data = str_reader.read()
+                file_path_or_data = Display.readHtmlFile(file_path_or_data)
             file_path_or_data =  base64.b64encode(file_path_or_data.encode('utf-8')).decode('utf-8')
             isText = True
             host_or_text = 'body'
@@ -473,129 +470,153 @@ class Display(object):
                 indirect_url = f'{options.get("temp_files_server_address")}/webbrowser?url={urllib.parse.quote(file_path_or_data)}&kernelid={options.get("kernel_id")}'
                 file_path_or_data = indirect_url
 
-            
         html_str = (
             f"""<!DOCTYPE html>
             <html><body>
             <div style='{style}'>
-            {before_text}
-            <button onclick="this.style.visibility='{onclick_visibility}';
-            kql_MagicLaunchWindowFunction({single_quote(file_path_or_data)}, {single_quote(window_params)}, {single_quote(window_name)}, {single_quote(host_or_text)});
-            kql_MagicCloseWindow(kql_Magic_{window_name}, {str(close_window_timeout_in_secs)}, {str(close_itself_timeout_in_secs)});">
-            {button_text}</button>{after_text}
+                {before_text}
+                <button onclick="this.style.visibility='{onclick_visibility}';
+                kql_MagicLaunchWindowFunction({single_quote(file_path_or_data)}, {single_quote(window_params)}, {single_quote(window_name)}, {single_quote(host_or_text)});
+                kql_MagicCloseWindow(kql_Magic_{window_name}, {str(close_window_timeout_in_secs)}, {str(close_itself_timeout_in_secs)});">
+                {button_text}</button>{after_text}
             </div>
+            <script src="https://code.jquery.com/jquery-3.7.1.min.js" 
+                    integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 
             <script>
-            var kql_Magic_{window_name} = null;
-
-
-            function kql_MagicCloseWindow(window_obj, obj_secs, itself_secs) {{
-                if (obj_secs >= 0) {{
-                    _timeout = setTimeout(function(){{
-                        window_obj.close();
-                        if (itself_secs >= 0) {{
-                            __timeout = setTimeout(function(){{window.close();}}, itself_secs * 1000);
-                        }}
-                    }}, obj_secs * 1000);
-                }} else if (itself_secs >= 0) {{
-                    _timeout = setTimeout(function(){{window.close();}}, itself_secs * 1000);
+                var kql_Magic_{window_name} = null;
+                function kql_MagicCloseWindow(window_obj, obj_secs, itself_secs) {{
+                    if (obj_secs >= 0) {{
+                        _timeout = setTimeout(function(){{
+                            window_obj.close();
+                            if (itself_secs >= 0) {{
+                                __timeout = setTimeout(function(){{window.close();}}, itself_secs * 1000);
+                            }}
+                        }}, obj_secs * 1000);
+                    }} else if (itself_secs >= 0) {{
+                        _timeout = setTimeout(function(){{window.close();}}, itself_secs * 1000);
+                    }}
                 }}
-            }}
-
-            function kql_MagicLaunchWindowFunction(file_path_or_data, window_params, window_name, host_or_text) {{
-                var url;
-                const baseURI = String(window.location);
-                if (host_or_text == 'text' || host_or_text == 'body') {{
-                    url = ''
-                }} else if (file_path_or_data.startsWith('http')) {{
-                    url = file_path_or_data;
-                }} else if (host_or_text.endsWith('.azureml.ms') || host_or_text.endsWith('.azureml.net')) {{
-                    let azuremlBaseURI = String(window.document.baseURI);
-                    let start = azuremlBaseURI.search('activeFilePath=');
-                    if (start > 0) {{
-                        start += 'activeFilePath='.length;
-                        let end = azuremlBaseURI.substring(start).search('&');
-                        if (end < 0) {{
-                            end = undefined;
+    
+                function kql_MagicLaunchWindowFunction(file_path_or_data, window_params, window_name, host_or_text) {{
+                    var url;
+                    const baseURI = String(window.location);
+                    if (host_or_text == 'text' || host_or_text == 'body') {{
+                        url = ''
+                    }} else if (file_path_or_data.startsWith('http')) {{
+                        url = file_path_or_data;
+                    }} else if (host_or_text.endsWith('.azureml.ms') || host_or_text.endsWith('.azureml.net')) {{
+                        let azuremlBaseURI = String(window.document.baseURI);
+                        let start = azuremlBaseURI.search('activeFilePath=');
+                        if (start > 0) {{
+                            start += 'activeFilePath='.length;
+                            let end = azuremlBaseURI.substring(start).search('&');
+                            if (end < 0) {{
+                                end = undefined;
+                            }}
+                            let parts = azuremlBaseURI.substring(start, end).split('/');
+                            parts.pop();
+                            url = host_or_text + '/tree/' + parts.join('/') + '/' + file_path_or_data;
+                        }} else {{
+                            var parts = baseURI.split('/');
+                            parts.pop();
+                            url = parts.join('/') + '/' + file_path_or_data;
                         }}
-                        let parts = azuremlBaseURI.substring(start, end).split('/');
-                        parts.pop();
-                        url = host_or_text + '/tree/' + parts.join('/') + '/' + file_path_or_data;
                     }} else {{
-                        var parts = baseURI.split('/');
-                        parts.pop();
-                        url = parts.join('/') + '/' + file_path_or_data;
-                    }}
-                }} else {{
-                    var base_url = '';
-
-                    // check if azure notebook
-                    var azure_host = (host_or_text == null || host_or_text.length == 0) ? 'https://notebooks.azure.com' : host_or_text;
-                    var start = azure_host.search('//');
-                    var azure_host_suffix = '.' + azure_host.substring(start+2);
-
-                    var end = baseURI.search(azure_host_suffix);
-                    start = baseURI.search('//');
-                    if (start > 0 && end > 0) {{
-                        // # azure notebook environment, assume template: https://library-user.notebooks.azure.com
-                        var parts = baseURI.substring(start+2, end).split('-');
-                        if (parts.length == 2) {{
-                            var library = parts[0];
-                            var user = parts[1];
-                            base_url = azure_host + '/api/user/' +user+ '/library/' +library+ '/html/';
+                        var base_url = '';
+    
+                        // check if azure notebook
+                        var azure_host = (host_or_text == null || host_or_text.length == 0) ? 'https://notebooks.azure.com' : host_or_text;
+                        var start = azure_host.search('//');
+                        var azure_host_suffix = '.' + azure_host.substring(start+2);
+    
+                        var end = baseURI.search(azure_host_suffix);
+                        start = baseURI.search('//');
+                        if (start > 0 && end > 0) {{
+                            // # azure notebook environment, assume template: https://library-user.notebooks.azure.com
+                            var parts = baseURI.substring(start+2, end).split('-');
+                            if (parts.length == 2) {{
+                                var library = parts[0];
+                                var user = parts[1];
+                                base_url = azure_host + '/api/user/' +user+ '/library/' +library+ '/html/';
+                            }}
                         }}
-                    }}
-
-                    // check if local jupyter lab
-                    if (base_url.length == 0) {{
-                        var configDataScipt  = document.getElementById('jupyter-config-data');
-                        if (configDataScipt != null) {{
-                            var jupyterConfigData = JSON.parse(configDataScipt.textContent);
-                            if (jupyterConfigData['appName'] == 'JupyterLab' && jupyterConfigData['serverRoot'] != null &&  jupyterConfigData['treeUrl'] != null) {{
-                                var basePath = {single_quote(Display.showfiles_file_base_path)} + '/';
-                                if (basePath.startsWith(jupyterConfigData['serverRoot'])) {{
-                                    base_url = '/files/' + basePath.substring(jupyterConfigData['serverRoot'].length+1);
+    
+                        // check if local jupyter lab
+                        if (base_url.length == 0) {{
+                            var configDataScipt  = document.getElementById('jupyter-config-data');
+                            if (configDataScipt != null) {{
+                                var jupyterConfigData = JSON.parse(configDataScipt.textContent);
+                                if (jupyterConfigData['appName'] == 'JupyterLab' && jupyterConfigData['serverRoot'] != null &&  jupyterConfigData['treeUrl'] != null) {{
+                                    var basePath = {single_quote(Display.showfiles_file_base_path)} + '/';
+                                    if (basePath.startsWith(jupyterConfigData['serverRoot'])) {{
+                                        base_url = '/files/' + basePath.substring(jupyterConfigData['serverRoot'].length+1);
+                                    }}
                                 }}
                             }}
                         }}
+    
+                        // works for local jupyter notebook
+                        if (base_url.length == 0) {{
+    
+                            var parts = baseURI.split('/');
+                            parts.pop(); // remove notebook name segment
+                            base_url = parts.join('/') + '/';
+                        }}
+                        url = base_url + file_path_or_data;
                     }}
-
-                    // works for local jupyter notebook
-                    if (base_url.length == 0) {{
-
-                        var parts = baseURI.split('/');
-                        parts.pop(); // remove notebook name segment
-                        base_url = parts.join('/') + '/';
-                    }}
-                    url = base_url + file_path_or_data;
+                    console.log("Got to url "  + url)
+                    $.get(base_url, function(data, status){{
+                        console.log("Got status" + status)
+                        if(status == 200) {{
+                            console.log("**Got status**" + status);
+                        }} else {{
+                            console.log("Got status" + status)                            
+                        }}
+                    }}).fail(function(){{ 
+                        console.log({Display.readHtmlFile(file_path_or_data).strip()})
+                        var w = screen.width / 2;
+                        var h = screen.height / 2;
+                        params = 'width='+w+',height='+h;                        
+                        var window_obj = window.open("", "{window_name}", params);
+                        window_obj.document.body.innerHTML = \'' + {Display.readHtmlFile(file_path_or_data).strip()}.replace("\n",'\\') + '\';
+                    }});                    
                 }}
-
-                window.focus();
-                var w = screen.width / 2;
-                var h = screen.height / 2;
-                params = 'width='+w+',height='+h;
-                // kql_Magic + window_name should be a global variable 
-                window_obj = window.open(url, window_name, window_params + params);
-                if (url == '') {{
-                    let decodedData = atob(file_path_or_data);
-                    if (host_or_text == 'text') {{
-                        var el = window_obj.document.createElement('p');
-                        window_obj.document.body.overflow = 'auto';
-                        el.style.top = 0;
-                        el.style.left = 0;
-                        el.innerHTML = decodedData;
-                        window_obj.document.body.appendChild(el);
-                    }} else {{
-                        window_obj.document.body.innerHTML = decodedData;
+                
+                function showDefaultPopUp(url, window_name , params) {{
+                    window.focus();
+                    var w = screen.width / 2;
+                    var h = screen.height / 2;
+                    params = 'width='+w+',height='+h;
+                    // kql_Magic + window_name should be a global variable 
+                    window_obj = window.open
+                    if (url == '') {{
+                        let decodedData = atob(file_path_or_data);
+                        if (host_or_text == 'text') {{
+                            var el = window_obj.document.createElement('p');
+                            window_obj.document.body.overflow = 'auto';
+                            el.style.top = 0;
+                            el.style.left = 0;
+                            el.innerHTML = decodedData;
+                            window_obj.document.body.appendChild(el);
+                        }} else {{
+                            window_obj.document.body.innerHTML = decodedData;
+                        }}
                     }}
+                    kql_Magic_{window_name} = window_obj;
                 }}
-                kql_Magic_{window_name} = window_obj;
-            }}
             </script>
-
             </body></html>"""
         )
         return html_str
+
+    @staticmethod
+    def readHtmlFile(file_path_or_data):
+        full_file_name = adjust_path(f"{Display.showfiles_file_base_path}/{file_path_or_data}")
+        with open(full_file_name, 'r') as str_reader:
+            # Read the entire file
+            file_path_or_data = str_reader.read()
+        return file_path_or_data
 
     @staticmethod
     def _get_Launch_page_html(window_name, file_path_or_data, close_window_timeout_in_secs, close_itself_timeout_in_secs, isText, options=None):
@@ -607,11 +628,8 @@ class Display(object):
                 with urllib.request.urlopen(file_path_or_data) as bytes_reader:
                     file_path_or_data = bytes_reader.read().decode('utf-8')
             else:
-                full_file_name = adjust_path(f"{Display.showfiles_file_base_path}/{file_path_or_data}")
-                with open(full_file_name, 'r') as str_reader:
-                    # Read the entire file
-                    file_path_or_data = str_reader.read()
-            file_path_or_data =  base64.b64encode(file_path_or_data.encode('utf-8')).decode('utf-8')
+                file_path_or_data = Display.readHtmlFile(file_path_or_data)
+            file_path_or_data = base64.b64encode(file_path_or_data.encode('utf-8')).decode('utf-8')
             isText = True
             host_or_text = 'body'
         window_name = window_name.replace(".", "_").replace("-", "_").replace("/", "_").replace(":", "_").replace(" ", "_")
