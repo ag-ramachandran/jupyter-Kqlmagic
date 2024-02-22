@@ -10,7 +10,7 @@ import uuid
 # import webbrowser
 import urllib.parse
 import urllib.request
-
+from .log import logger
 
 from ._debug_utils import debug_print
 from .ipython_api import display, HTML
@@ -218,6 +218,9 @@ class Display(object):
                 if options.get("notebook_app") in ["azuredatastudiosaw"]:
                     file_ext = "txt"
                 file_path = Display._html_to_file_path(content, file_name, file_ext=file_ext, **options)
+                logger().debug("-------------------------------------------------------------------------")
+                logger().debug("show--------------------------------------------------------------------")
+                logger().debug("-------------------------------------------------------------------------")
                 Display.show_window(file_name, file_path, display_handler_name=display_handler_name, **options)
             else:
                 Display.show_html(content, display_handler_name=display_handler_name, **options)
@@ -238,6 +241,9 @@ class Display(object):
         html_str = Display._get_Launch_page_html(window_name, deep_link_url, close_window_timeout_in_secs, close_itself_timeout_in_secs, False, options=options)
         file_name = Display._get_name()
         file_path = Display._html_to_file_path(html_str, file_name, **options)
+        logger().debug("-------------------------------------------------------------------------")
+        logger().debug("get_show_deeplink_webbrowser_html_obj--------------------------------------------------------------------")
+        logger().debug("-------------------------------------------------------------------------")
         url = Display._get_file_path_url(file_path, options=options)
         return url
 
@@ -325,6 +331,9 @@ class Display(object):
             popup_html = Display._get_popup_window_html(url, window_name, close_window_timeout_in_secs, options=options)
             popup_file_name = f"popup_{file_path.split('/')[-1].split('.')[0]}"
             popup_file_path = Display._html_to_file_path(popup_html, popup_file_name, **options)
+            logger().debug("-------------------------------------------------------------------------")
+            logger().debug(f"_get_window_ref_html :: {popup_file_path}")
+            logger().debug("-------------------------------------------------------------------------")
             url = Display._get_file_path_url(popup_file_path, options=options)
 
         if options.get("temp_files_server_address") is not None:
@@ -378,6 +387,9 @@ class Display(object):
         text_file.write(bytes(html_str, 'utf-8'))
         text_file.close()
         # ipython will delete file at shutdown or by restart
+        logger().debug("-------------------------------------------------------------------------")
+        logger().debug(f"_html_to_file_path {file_path} ")
+        logger().debug("-------------------------------------------------------------------------")
         IPythonAPI.try_add_to_ipython_tempfiles(full_file_name)
         return file_path
 
@@ -503,13 +515,17 @@ class Display(object):
             }}
 
             function kql_MagicLaunchWindowFunction(file_path_or_data, window_params, window_name, host_or_text) {{
+                console.log(host_or_text)
                 var url;
                 const baseURI = String(window.location);
                 if (host_or_text == 'text' || host_or_text == 'body') {{
+                    console.log('1')
                     url = ''
                 }} else if (file_path_or_data.startsWith('http')) {{
+                    console.log('2')
                     url = file_path_or_data;
                 }} else if (host_or_text.endsWith('.azureml.ms') || host_or_text.endsWith('.azureml.net')) {{
+                    console.log('3')
                     let azuremlBaseURI = String(window.document.baseURI);
                     let start = azuremlBaseURI.search('activeFilePath=');
                     if (start > 0) {{
@@ -522,20 +538,24 @@ class Display(object):
                         parts.pop();
                         url = host_or_text + '/tree/' + parts.join('/') + '/' + file_path_or_data;
                     }} else {{
+                        console.log('20' + baseURI)
                         var parts = baseURI.split('/');
                         parts.pop();
                         url = parts.join('/') + '/' + file_path_or_data;
+                        console.log('21' + url)                        
                     }}
                 }} else {{
                     var base_url = '';
-
+                    console.log('4')
                     // check if azure notebook
                     var azure_host = (host_or_text == null || host_or_text.length == 0) ? 'https://notebooks.azure.com' : host_or_text;
+                    console.log('5'+azure_host)
                     var start = azure_host.search('//');
                     var azure_host_suffix = '.' + azure_host.substring(start+2);
-
+                    console.log('6'+azure_host_suffix)
                     var end = baseURI.search(azure_host_suffix);
                     start = baseURI.search('//');
+                    console.log('7'+start+'--'+end)
                     if (start > 0 && end > 0) {{
                         // # azure notebook environment, assume template: https://library-user.notebooks.azure.com
                         var parts = baseURI.substring(start+2, end).split('-');
@@ -567,17 +587,21 @@ class Display(object):
                         parts.pop(); // remove notebook name segment
                         base_url = parts.join('/') + '/';
                     }}
+                    console.log('8'+ base_url)
+                    console.log('9'+ file_path_or_data)
                     url = base_url + file_path_or_data;
                 }}
-
+                console.log('10')
                 window.focus();
                 var w = screen.width / 2;
                 var h = screen.height / 2;
                 params = 'width='+w+',height='+h;
                 // kql_Magic + window_name should be a global variable 
                 window_obj = window.open(url, window_name, window_params + params);
+                console.log('11' + url)
                 if (url == '') {{
                     let decodedData = atob(file_path_or_data);
+                    console.log('11a' + host_or_text)                    
                     if (host_or_text == 'text') {{
                         var el = window_obj.document.createElement('p');
                         window_obj.document.body.overflow = 'auto';
@@ -589,6 +613,7 @@ class Display(object):
                         window_obj.document.body.innerHTML = decodedData;
                     }}
                 }}
+                console.log('12' + url)
                 kql_Magic_{window_name} = window_obj;
             }}
             </script>

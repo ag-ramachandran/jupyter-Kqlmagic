@@ -968,6 +968,8 @@ class Kqlmagic_core(object):
                                 html_str = bytes_reader.read().decode('utf-8')
                             if html_str is not None:
                                 file_path = Display._html_to_file_path(html_str, result.name, **options)
+                                logger().debug(
+                                    "execute-------------------------------------------------------------------")
                         html_obj = Display.get_show_window_html_obj(result.name, file_path, result.button_text, onclick_visibility="visible", options=options)
                         result = html_obj
 
@@ -1024,6 +1026,9 @@ class Kqlmagic_core(object):
                                 popup_text = popup_text or str(param)
                             if popup_text:
                                 button_text += f" {popup_text}"
+                            logger().debug("-------------------------------------------------------------------------")
+                            logger().debug(f"execute2 ::")
+                            logger().debug("-------------------------------------------------------------------------")
                             file_path = Display._html_to_file_path(html_str, file_name, file_ext=file_ext, **options)
                             html_obj = Display.get_show_window_html_obj(file_name, file_path, button_text=button_text, onclick_visibility="visible", options=options)
                             result = html_obj
