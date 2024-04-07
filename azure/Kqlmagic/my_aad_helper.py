@@ -672,10 +672,18 @@ class _MyAadHelper(AadHelper):
         token = None
         self._current_authentication_method = AuthenticationMethod.managed_service_identity
         try:
-            from msrestazure.azure_active_directory import MSIAuthentication
+            # check if the map msi_params has the key client_id
+            # if it does, use it as the client_id (UserManagedIdentity)
+            from azure.identity import ManagedIdentityCredential
+            msi = ManagedIdentityCredential()
+            if msi_params.__contains__("client_id"):
+                msi = ManagedIdentityCredential(
+                    client_id=msi_params["client_id"],
+                )
             # allow msi_params to overrite the connection string resource
-            credentials = MSIAuthentication(**{"resource":self._resource, **msi_params})
-            token = credentials.token
+            #credentials = MSIAuthentication(**{"resource":self._resource, **msi_params})
+            accesstoken = msi.get_token(self._resource)
+            token = accesstoken.token
         except:
             pass
 

@@ -127,7 +127,7 @@ _MSAL_SSO_REQUIRES = [
 ]
 
 _MSI_SSO_REQUIRES = [
-    'msrestazure>=0.6.3',
+    'azure-identity>=1.5.0',
 ]
 
 _SSO_REQUIRES = list_union(_KQLMAGIC_SSO_REQUIRES, _AZCLI_SSO_REQUIRES, _VSCODE_SSO_REQUIRES, _MSAL_SSO_REQUIRES,

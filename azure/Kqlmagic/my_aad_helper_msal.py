@@ -951,11 +951,17 @@ class _MyAadHelper(AadHelper):
         old_stderr = sys.stderr
         sys.stderr = StringIO()
         try:
-            from msrestazure.azure_active_directory import MSIAuthentication
+            # allow msi_params to overwrite the connection string resource
+            from azure.identity import ManagedIdentityCredential
+            msi = ManagedIdentityCredential()
+            if msi_params.__contains__("client_id"):
+                msi = ManagedIdentityCredential(
+                    client_id=msi_params["client_id"],
+                )
             # allow msi_params to overrite the connection string resource
-            credentials = MSIAuthentication(**{"resource":self._resource, **msi_params})
-            token = credentials.token
-            self._migrate_to_msal_app(token)
+            #credentials = MSIAuthentication(**{"resource":self._resource, **msi_params})
+            accesstoken = msi.get_token(self._resource)
+            token = accesstoken.token
         except:
             pass
         sys.stderr = old_stderr or sys.stderr

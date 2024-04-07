@@ -198,13 +198,9 @@ class Kqlmagic(Magics, Configurable):
         config=True, 
         allow_none=True, 
         help=f"""Try first to get MSI token from MSI endpoint.
-        Should be a dictionary with the optional MSI params: resource, client_id/object_id/mis_res_id, cloud_environment, , timeout"""  
-        # - timeout: If provided, must be in seconds and indicates the maximum time we'll try to get a token before raising MSIAuthenticationTimeout
-        # - client_id: Identifies, by Azure AD client id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with object_id and msi_res_id.
-        # - object_id: Identifies, by Azure AD object id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and msi_res_id.
-        # - msi_res_id: Identifies, by ARM resource id, a specific explicit identity to use when authenticating to Azure AD. Mutually exclusive with client_id and object_id.
-        # - cloud_environment (msrestazure.azure_cloud.Cloud): A targeted cloud environment
-        # - resource (str): Alternative authentication resource, default is 'https://management.core.windows.net/'.      
+        Should be a dictionary with the optional MSI params: resource, client_id/scopes"""
+        # - client_id: Identifies a user managed identity
+        # - scopes (str): Alternative authentication resource, default is 'https://management.core.windows.net/'.
     )
 
     sso_db_gc_interval = Int(
@@ -808,16 +804,10 @@ class Kqlmagic(Magics, Configurable):
         try:
             msi_params = proposal["value"]
             if msi_params is not None:
-                valid_params = ["port", "timeout", "client_id", "object_id", "msi_res_id", "cloud_environment", "resource"]
+                valid_params = ["client_id", "scopes"]
                 for key in msi_params:
                     if key not in valid_params:
                         raise ValueError(f"unknown param '{key}'. Supported params: {valid_params}")
-                exclusive_pcount = 0
-                for key in ["client_id", "object_id", "msi_res_id"]:
-                    if msi_params.get(key) is not None:
-                        exclusive_pcount += 1
-                if exclusive_pcount > 1:
-                    raise ValueError("the following parameters are mutually exclusive and can not be provided at the same time: user_uid, object_id, msi_res_id")
         except (AttributeError, ValueError) as e:
             message = f"The 'try_msi' trait of a {Constants.MAGIC_CLASS_NAME} instance {str(e)}"
             raise TraitError(message)
